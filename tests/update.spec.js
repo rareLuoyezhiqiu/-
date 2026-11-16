@@ -23,7 +23,7 @@ test('新 Service Worker 提示更新、不强制刷新，更新保留记录与�
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
     await page.getByRole('button',{name:'＋ 记一下',exact:true}).click();await page.getByLabel('想法内容').fill('更新前保存的记录');await page.getByRole('button',{name:'保存想法'}).click();
     await expect(page.locator('#editor')).not.toBeVisible();
-    page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'帮我展开',exact:true}).click();await page.getByRole('button',{name:'保留拓写',exact:true}).click();await expect(page.locator('#ai-panel').getByText('已保留',{exact:true})).toBeVisible();
+    await page.locator('.note-actions').getByRole('button',{name:'编辑',exact:true}).click();page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'帮我展开',exact:true}).click();await page.getByRole('button',{name:'保留拓写',exact:true}).click();await expect(page.locator('#ai-panel').getByText('已保留',{exact:true})).toBeVisible();
     await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();await page.getByRole('button',{name:'收起',exact:true}).click();
     await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);
     version = 2;
@@ -32,7 +32,7 @@ test('新 Service Worker 提示更新、不强制刷新，更新保留记录与�
     await page.getByRole('button',{name:'＋ 记一下',exact:true}).click();await page.getByLabel('想法内容').fill('更新前未完成的草稿');
     await expect(page.locator('#editor')).toBeVisible();
     await page.getByRole('button',{name:'收起'}).click();
-    page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'更新应用'}).click();await expect(page.getByRole('button',{name:'查看生成结果'})).toBeVisible();
+    page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'更新应用'}).click();await expect(page.getByRole('button',{name:'更新应用'})).toBeVisible();
     page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'更新应用'}).click();
     await expect(page.getByRole('button',{name:'更新应用'})).not.toBeVisible();
     await expect(page.locator('.note > p')).toHaveText('更新前保存的记录');await expect(page.locator('.saved-expansion')).toContainText('更新前的拓写');await expect(page.getByRole('button',{name:'查看生成结果'})).toHaveCount(0);

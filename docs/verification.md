@@ -2,7 +2,7 @@
 
 日期：2026-11-16。Windows / Node.js 26.13.1 / Playwright Chromium。
 
-`npm test`：类型检查和生产构建通过；服务端 12 项、浏览器 20 项通过，失败 0。
+`npm test`：类型检查和生产构建通过；服务端 12 项、浏览器 22 项通过，失败 0。
 
 ## 本次覆盖
 
@@ -76,3 +76,7 @@
 | 个人试用一周 | 待用户执行 | 记录速度、回看频率、丢失或提示不清晰情况 |
 
 最终执行结果：npm test 9 项通过、0 失败；类型检查和生产构建通过；npm audit 0 vulnerabilities。
+
+## 编辑面板入口调整验证
+
+新增两项浏览器测试：主列表无生成入口，新增/编辑面板先保存当前内容再生成；保存失败无 AI 请求且输入保留，恢复后可重试。回归测试改为从编辑面板进入。验证返回编辑再生成不产生重复记录。手机、桌面截图见 `artifacts/expand-editor-mobile.png`、`artifacts/expand-editor-desktop.png`。

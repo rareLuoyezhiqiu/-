@@ -41,6 +41,7 @@ export function useNotes() {
         expansions.value = await repository.listExpansions(); draft.value = undefined; return true;
       }
       const note = await repository.saveNote(content.value, noteId.value);
+      noteId.value = note.id;
       notes.value = [...notes.value.filter(n => n.id !== note.id), note].sort((a,b) => b.createdAt-a.createdAt || b.id.localeCompare(a.id));
       draft.value = undefined; return true;
     } catch (cause) { error.value = cause instanceof Error && cause.message.includes('删除') ? cause.message : '保存失败，输入已保留。请检查存储空间或权限后重试。'; return false; }

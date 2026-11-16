@@ -17,18 +17,19 @@ async function setup(page) {
   await page.goto('/');await expect(page.getByRole('button',{name:'＋ 记一下',exact:true})).toBeEnabled();
   return {requests,control};
 }
-async function start(page){page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'帮我展开',exact:true}).first().click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();}
+async function openExpansion(page, name, index=0) { await page.locator('.note-actions').nth(index).getByRole('button',{name:'编辑',exact:true}).click();await page.locator('#editor').getByRole('button',{name,exact:true}).click(); }
+async function start(page){page.once('dialog',d=>d.accept());await openExpansion(page, '帮我展开');await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();}
 async function retain(page){await page.getByRole('button',{name:'保留拓写',exact:true}).click();await expect(page.locator('#ai-panel').getByText('已保留',{exact:true})).toBeVisible();await page.locator('#ai-panel').getByRole('button',{name:'收起',exact:true}).click();}
 async function backup(page){await page.getByText('数据备份与桌面安装').click();const promise=page.waitForEvent('download');await page.getByText('导出 JSON 备份').click();return JSON.parse(await readFile(await (await promise).path(),'utf8'));}
 
 test('首次取消不请求；候选不导出；保留、刷新、纯文本、截图',async({page})=>{
   const {requests}=await setup(page);await add(page);
-  page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'帮我展开',exact:true}).click();expect(requests).toHaveLength(0);
+  page.once('dialog',d=>d.dismiss());await openExpansion(page, '帮我展开');await expect(page.getByRole('button',{name:'重新生成',exact:true})).toBeVisible();expect(requests).toHaveLength(0);
   page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();
   expect(Object.keys(requests[0]).sort()).toEqual(['content','requestId']);expect(requests[0].content).toContain('每天散步');
   await mkdir('artifacts',{recursive:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'artifacts/ai-preview-mobile.png',fullPage:true});
   await page.getByRole('button',{name:'收起',exact:true}).click();expect((await backup(page)).expansions).toEqual([]);
-  await page.getByRole('button',{name:'查看生成结果'}).click();await retain(page);
+  await openExpansion(page, '查看生成结果');await retain(page);
   await page.reload();await page.locator('.saved-expansion summary').click();await expect(page.locator('.saved-expansion')).toContainText('<script>不会执行</script>');
   await page.screenshot({path:'artifacts/ai-saved-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:'artifacts/ai-saved-desktop.png',fullPage:true});
   const data=await backup(page);expect(data.formatVersion).toBe(2);expect(data.expansions).toHaveLength(1);expect(data.expansions[0].noteId).toBe(data.notes[0].id);expect(data.drafts).toBeUndefined();expect(requests).toHaveLength(1);
@@ -36,10 +37,10 @@ test('首次取消不请求；候选不导出；保留、刷新、纯文本、�
 
 test('重新生成失败、放弃和确认替换；本机写失败可重试',async({page})=>{
   const {control}=await setup(page);await add(page);await start(page);await retain(page);
-  await page.getByRole('button',{name:'查看拓写',exact:true}).click();control.mode='error';await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('服务受限');await expect(page.getByRole('button',{name:'保留拓写',exact:true})).toHaveCount(0);
+  await openExpansion(page, '查看拓写');control.mode='error';await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('服务受限');await expect(page.getByRole('button',{name:'保留拓写',exact:true})).toHaveCount(0);
   page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'关闭',exact:true}).click();
   await page.locator('.saved-expansion summary').click();await expect(page.locator('.saved-expansion')).toContainText('降低出门');
-  control.mode='replacement';await page.getByRole('button',{name:'查看拓写',exact:true}).click();await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();
+  control.mode='replacement';await openExpansion(page, '查看拓写');await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();
   page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'保留拓写',exact:true}).click();await expect(page.locator('.saved-expansion')).toContainText('降低出门');
   await page.evaluate(()=>{window.put=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){if(this.name==='expansions')throw new DOMException('Full','QuotaExceededError');return window.put.apply(this,args);};});
   page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'保留拓写',exact:true}).click();await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('尚未保留');await expect(page.locator('.ai-output')).toHaveText('新的思考方向。');
@@ -51,26 +52,26 @@ test('拓写编辑草稿恢复、取消、离线编辑导出和单独删除',asy
   await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);await context.setOffline(true);await page.reload();await page.locator('.saved-expansion summary').click();await expect(page.locator('.saved-expansion')).toContainText('降低出门');
   await page.getByRole('button',{name:'编辑拓写'}).click();await page.getByLabel('想法内容').fill('离线编辑的拓写');await page.getByRole('button',{name:'保存拓写',exact:true}).click();await expect(page.locator('.saved-expansion')).toContainText('已编辑');
   expect((await backup(page)).expansions[0].content).toBe('离线编辑的拓写');
-  await page.getByRole('button',{name:'查看拓写',exact:true}).click();await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('需要联网');await page.getByRole('button',{name:'收起',exact:true}).click();
+  await openExpansion(page, '查看拓写');await page.getByRole('button',{name:'重新生成',exact:true}).click();await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('需要联网');await page.getByRole('button',{name:'收起',exact:true}).click();
   page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'删除拓写'}).click();await expect(page.locator('.saved-expansion')).toBeVisible();page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'删除拓写'}).click();await expect(page.locator('.saved-expansion')).toHaveCount(0);await page.reload();await expect(page.locator('.note')).toHaveCount(1);
 });
 
 test('收起继续、单任务、原文变更禁用保留、删除后晚到响应无效',async({page})=>{
-  const {control,requests}=await setup(page);await add(page,'第一条');await add(page,'第二条');control.mode='wait';page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'帮我展开',exact:true}).first().click();await expect.poll(()=>requests.length).toBe(1);
-  await page.getByRole('button',{name:'收起',exact:true}).click();page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'帮我展开',exact:true}).click();expect(requests).toHaveLength(1);
+  const {control,requests}=await setup(page);await add(page,'第一条');await add(page,'第二条');control.mode='wait';page.once('dialog',d=>d.accept());await openExpansion(page, '帮我展开');await expect.poll(()=>requests.length).toBe(1);
+  await page.getByRole('button',{name:'收起',exact:true}).click();page.once('dialog',d=>d.accept());await openExpansion(page, '帮我展开', 1);expect(requests).toHaveLength(1);await page.locator('#editor').getByRole('button',{name:'取消编辑'}).click();
   await page.locator('.note').first().getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('想法内容').fill('改过的第二条');await page.getByRole('button',{name:'保存想法'}).click();await expect(page.locator('.note > p').first()).toHaveText('改过的第二条');
-  await page.getByRole('button',{name:'正在拓写',exact:true}).click();control.release();await expect(page.getByRole('button',{name:'保留拓写',exact:true})).toBeDisabled();await expect(page.locator('#ai-panel .stale')).toBeVisible();
+  await openExpansion(page, '正在拓写');control.release();await expect(page.getByRole('button',{name:'保留拓写',exact:true})).toBeDisabled();await expect(page.locator('#ai-panel .stale')).toBeVisible();
   await page.getByRole('button',{name:'保留拓写',exact:true}).evaluate(button=>{button.disabled=false;button.click();});await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('原文已修改或删除');
   await page.getByRole('button',{name:'收起',exact:true}).click();await page.locator('.note').first().getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'确认删除'}).click();await expect(page.locator('.confirm')).not.toBeVisible();await page.reload();await expect(page.locator('.note')).toHaveCount(1);
-  control.mode='wait';await page.getByRole('button',{name:'帮我展开',exact:true}).click();await expect.poll(()=>requests.length).toBe(2);await page.getByRole('button',{name:'收起',exact:true}).click();await page.locator('.note').getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'确认删除'}).click();await expect(page.locator('.confirm')).not.toBeVisible();control.release();await page.reload();await expect(page.locator('.note')).toHaveCount(0);
+  control.mode='wait';await openExpansion(page, '帮我展开');await expect.poll(()=>requests.length).toBe(2);await page.getByRole('button',{name:'收起',exact:true}).click();await page.locator('.note').getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'确认删除'}).click();await expect(page.locator('.confirm')).not.toBeVisible();control.release();await page.reload();await expect(page.locator('.note')).toHaveCount(0);
 });
 for(const mode of ['partial','empty'])test(`不完整结果 ${mode} 不可保留且可手动重试`,async({page})=>{
-  const {control,requests}=await setup(page);control.mode=mode;await add(page);page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'帮我展开',exact:true}).click();await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('未收到完整');await expect(page.getByRole('button',{name:'保留拓写',exact:true})).toHaveCount(0);expect(requests).toHaveLength(1);
+  const {control,requests}=await setup(page);control.mode=mode;await add(page);page.once('dialog',d=>d.accept());await openExpansion(page, '帮我展开');await expect(page.locator('#ai-panel').getByRole('alert')).toContainText('未收到完整');await expect(page.getByRole('button',{name:'保留拓写',exact:true})).toHaveCount(0);expect(requests).toHaveLength(1);
   control.mode='ok';page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'重试',exact:true}).click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();
 });
 
 test('服务商变更重新告知、API 设置提交后清空密钥',async({page})=>{
-  const {control,requests}=await setup(page);await add(page);await start(page);page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'关闭',exact:true}).click();control.revision='two';page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'帮我展开',exact:true}).click();expect(requests).toHaveLength(1);await page.getByRole('button',{name:'关闭',exact:true}).click();
+  const {control,requests}=await setup(page);await add(page);await start(page);page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'关闭',exact:true}).click();control.revision='two';page.once('dialog',d=>d.dismiss());await openExpansion(page, '帮我展开');expect(requests).toHaveLength(1);await page.getByRole('button',{name:'关闭',exact:true}).click();
   let settings;await page.route('**/api/settings',route=>{settings=route.request().postDataJSON();return route.fulfill({json:{message:'API 设置已保存'}});});
   await page.getByRole('button',{name:'API 设置',exact:true}).click();await page.getByLabel('个人访问口令').fill('test-token');await page.getByLabel('API Key',{exact:true}).fill('secret-test');await page.getByRole('button',{name:'保存 API 设置'}).click();await expect(page.getByLabel('API Key',{exact:true})).toHaveValue('');expect(settings.apiKey).toBe('secret-test');expect(await page.evaluate(()=>JSON.stringify(localStorage))).not.toContain('secret-test');
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:'artifacts/api-settings-mobile.png',fullPage:true});
@@ -87,11 +88,31 @@ for (const version of [1,2]) test(`真实 v${version}→v3 迁移保留原文和
 test('另一标签页修改原文后旧候选禁用，已保留拓写提示过时，关联草稿随删除清理',async({page,context})=>{
   await setup(page);await add(page);await start(page);await retain(page);
   const other=await context.newPage();await other.goto('/');await other.locator('.note-actions').getByRole('button',{name:'编辑',exact:true}).click();await other.getByLabel('想法内容').fill('在另一标签页修改原文');await other.getByRole('button',{name:'保存想法'}).click();
-  await page.locator('.saved-expansion summary').click();await expect(page.locator('.saved-expansion .stale')).toContainText('原文已修改');await page.getByRole('button',{name:'查看拓写',exact:true}).click();await expect(page.locator('#ai-panel .stale')).toContainText('原文已修改');await page.getByRole('button',{name:'收起',exact:true}).click();
+  await page.locator('.saved-expansion summary').click();await expect(page.locator('.saved-expansion .stale')).toContainText('原文已修改');await openExpansion(page, '查看拓写');await expect(page.locator('#ai-panel .stale')).toContainText('原文已修改');await page.getByRole('button',{name:'收起',exact:true}).click();
   await page.getByRole('button',{name:'编辑拓写'}).click();await page.getByLabel('想法内容').fill('关联草稿');await page.getByRole('button',{name:'收起',exact:true}).click();await page.locator('.note-actions').getByRole('button',{name:'删除',exact:true}).click();await expect(page.locator('.confirm')).toContainText('一并删除');await page.getByRole('button',{name:'确认删除'}).click();await expect(page.locator('.confirm')).not.toBeVisible();await page.reload();await expect(page.locator('#resume')).toHaveCount(0);expect((await backup(page)).expansions).toEqual([]);
 });
 
 test('已删除目标的草稿只能复制或放弃；长结果小视口按钮可达',async({page,context})=>{
   await setup(page);await add(page);await start(page);await page.setViewportSize({width:320,height:360});await expect(page.getByRole('button',{name:'保留拓写',exact:true})).toBeInViewport();await page.screenshot({path:'artifacts/ai-short-viewport.png',fullPage:true});await retain(page);await page.setViewportSize({width:390,height:844});await page.locator('.saved-expansion summary').click();await page.getByRole('button',{name:'编辑拓写'}).click();await page.getByLabel('想法内容').fill('不能丢的拓写草稿');await expect(page.getByText('草稿已暂存',{exact:true})).toBeVisible();
   const other=await context.newPage();await other.goto('/');await other.locator('.note-actions').getByRole('button',{name:'删除',exact:true}).click();await other.getByRole('button',{name:'确认删除'}).click();await expect(page.getByRole('button',{name:'保存拓写',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'复制内容'})).toBeVisible();await page.getByRole('button',{name:'收起',exact:true}).click();await expect(page.locator('#editor')).not.toBeVisible();await page.reload();await page.locator('#resume').click();await expect(page.getByLabel('想法内容')).toHaveValue('不能丢的拓写草稿');await expect(page.getByRole('button',{name:'保存拓写',exact:true})).toBeDisabled();await page.getByRole('button',{name:'取消编辑'}).click();await expect(page.locator('.note')).toHaveCount(0);
+});
+
+test('展开入口仅在编辑面板，新建和修改均先保存当前内容再生成',async({page})=>{
+  const {requests}=await setup(page);await page.setViewportSize({width:390,height:844});
+  await expect(page.locator('main').getByRole('button',{name:/帮我展开|查看拓写|保存并展开|查看生成结果/})).toHaveCount(0);
+  await page.getByRole('button',{name:'＋ 记一下',exact:true}).click();await expect(page.getByRole('button',{name:'保存并展开',exact:true})).toBeDisabled();
+  await page.getByLabel('想法内容').fill('把每天散步遇到的小事记下来');await expect(page.getByText('草稿已暂存',{exact:true})).toBeVisible();
+  await page.screenshot({path:'artifacts/expand-editor-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:'artifacts/expand-editor-desktop.png',fullPage:true});
+  page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'保存并展开',exact:true}).click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();expect(requests[0].content).toBe('把每天散步遇到的小事记下来');await expect(page.locator('.note')).toHaveCount(1);
+  await page.getByRole('button',{name:'返回编辑',exact:true}).click();await expect(page.getByLabel('想法内容')).toHaveValue('把每天散步遇到的小事记下来');await page.getByLabel('想法内容').fill('把散步时看到的树木记下来');
+  page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'保存并展开',exact:true}).click();await expect.poll(()=>requests.length).toBe(2);await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();expect(requests[1].content).toBe('把散步时看到的树木记下来');await expect(page.locator('.note')).toHaveCount(1);await expect(page.locator('.note > p')).toHaveText(requests[1].content);
+  await page.getByRole('button',{name:'返回编辑',exact:true}).click();await expect(page.getByRole('button',{name:'查看生成结果',exact:true})).toBeVisible();await page.getByRole('button',{name:'取消编辑',exact:true}).click();await expect(page.locator('main').getByRole('button',{name:/展开|查看生成结果|查看拓写/})).toHaveCount(0);
+});
+
+test('编辑中保存失败不调用 AI 且保留输入，恢复后能保存并展开',async({page})=>{
+  const {requests}=await setup(page);await add(page,'已保存的原文');await page.locator('.note-actions').getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('想法内容').fill('最新编辑内容');await expect(page.getByText('草稿已暂存',{exact:true})).toBeVisible();
+  await page.evaluate(()=>{window.put=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){if(this.name==='notes')throw new DOMException('Full','QuotaExceededError');return window.put.apply(this,args);};});
+  await page.getByRole('button',{name:'保存并展开',exact:true}).click();await expect(page.locator('#editor').getByRole('alert')).toContainText('保存失败');expect(requests).toHaveLength(0);await expect(page.getByLabel('想法内容')).toHaveValue('最新编辑内容');await expect(page.locator('.note > p')).toHaveText('已保存的原文');
+  await page.evaluate(()=>IDBObjectStore.prototype.put=window.put);page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'保存并展开',exact:true}).click();await expect(page.getByText('已生成，尚未保留',{exact:true})).toBeVisible();expect(requests[0].content).toBe('最新编辑内容');
 });
