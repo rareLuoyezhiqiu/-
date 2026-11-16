@@ -1,0 +1,10 @@
+{
+  "name": "inspiration-list-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "playwright test"
+  },
+  "devDependencies": { "@playwright/test": "^1.58.0" }
+}
