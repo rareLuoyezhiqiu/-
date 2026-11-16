@@ -124,7 +124,7 @@ test('首次缓存后离线重开并保存，JSON 导出不含草稿', async ({p
   await page.getByText('数据备份与桌面安装').click();
   const download=page.waitForEvent('download');await page.getByText('导出 JSON 备份').click();
   const data=JSON.parse(await readFile(await (await download).path(),'utf8'));
-  expect(data.formatVersion).toBe(1);expect(data.notes.map(n=>n.content)).toEqual(['离线记录','离线之前']);expect(data.drafts).toBeUndefined();
+  expect(data.formatVersion).toBe(2);expect(data.notes.map(n=>n.content)).toEqual(['离线记录','离线之前']);expect(data.drafts).toBeUndefined();
 });
 test('手机、桌面截图及缩小视口保存、纯文本安全显示', async ({page})=>{
   await mkdir('artifacts',{recursive:true});
