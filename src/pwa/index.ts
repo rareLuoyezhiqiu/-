@@ -1,3 +1,4 @@
+import { isAndroid } from '../services/native';
 import { ref } from 'vue';
 export const offlineReady = ref(false), needRefresh = ref(false), pwaError = ref('');
 let registration: ServiceWorkerRegistration | undefined;
@@ -7,7 +8,8 @@ export async function updateApp(_reload: boolean) {
   requested = true;
   registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 }
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (isAndroid) offlineReady.value = true;
+if (!isAndroid && import.meta.env.PROD && 'serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (requested) location.reload(); });
   void navigator.serviceWorker.register('/sw.js').then(reg => {
     registration = reg;

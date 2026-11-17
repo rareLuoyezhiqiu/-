@@ -1,3 +1,4 @@
+import { isAndroid, AndroidBridge } from '../services/native';
 import { ref, onScopeDispose } from 'vue';
 import * as repository from '../db';
 import type { Note, Draft, Expansion } from '../db';
@@ -56,6 +57,7 @@ export function useNotes() {
   async function exportNotes() {
     try {
       const data = await repository.exportData();
+      if (isAndroid) { await AndroidBridge.exportJSON({filename:`灵感清单-${new Date().toISOString().slice(0,10)}.json`,content:JSON.stringify(data,null,2)}); return; }
       const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
       const link = document.createElement('a'); link.href = url; link.download = `灵感清单-${new Date().toISOString().slice(0,10)}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { error.value = '导出失败，请重试。'; }

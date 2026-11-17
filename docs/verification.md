@@ -1,3 +1,22 @@
+# Android MVP 发布验证（2026-11-17）
+
+本次环境：Windows、Node 26.13.1、JDK 21.0.13、Gradle 8.14.3、SDK 36、Capacitor 8.6.2。
+
+- `npm test`：类型检查与构建成功，19 项服务端/协议测试、24 项 Chromium 浏览器测试通过，失败 0。
+- `npm run android:build`：正式签名 APK 与 `lintRelease` 通过（0 errors；模板资源及依赖更新提示为非阻断 warnings）。
+- `:app:connectedDebugAndroidTest`：Android 15 ATD / WebView 124 的 3 项 instrumentation 测试通过，失败 0：真实 Keystore 加密与进程内重读；WebView 新增、返回键草稿与重开；原生 HTTPS 连接受控上游、凭据附加、中文/emoji SSE 完整响应。
+- 正式 Release APK：安装启动、输入保存、关闭 Wi-Fi/移动网络后强制关闭重开、同签名 APK 覆盖安装后原记录保留、API 设置界面、系统文件保存对话框保存并读取真实格式 v2 JSON 均已检查。
+- `apksigner verify --verbose --print-certs`：APK Signature Scheme v2 验证成功，RSA 3072 位正式签名，证书 SHA-256 `041c9319cfe56ee0e97b7154a1ca18dc7feb9c0523c79fcb6b6f21c0cf127fa1`。
+- Android 无需运行 Node 服务；直连 UI 使用受控原生桥接覆盖保留、取消、密钥不进入浏览器存储或备份；原生加密及 HTTPS 已另用真实 Android 测试验证。
+
+实际 APK 截图：`artifacts/android-release-home.png`、`android-release-editor.png`、`android-release-settings.png`、`android-release-offline.png`、`android-release-updated.png`、`android-release-export.png`。已查看实际界面，沿用现有设计，删除重复密钥说明，Android 隐藏网页安装和持久化授权入口。
+
+测试范围限制：覆盖安装本次使用同版本同签名包，尚未与未来数据库版本联测；没有真实付费 API Key，未评估实际模型质量和中国大陆网络。实体手机、厂商后台策略、Android 7～14/16 兼容性、一周试用仍待执行。Android 9 旧镜像 WebView 66 不满足 107 下限，已验证会显示「请更新系统 WebView」提示，未声称支持该旧 WebView。
+
+受控 HTTPS 测试信任覆盖仅在 androidTest 进程，测试 PKCS12 夹具不进入 Release APK。正式签名密钥仅本机 `.signing/` 保管，未提交。
+
+---
+
 # V0.2 验证记录
 
 日期：2026-11-16。Windows / Node.js 26.13.1 / Playwright Chromium。

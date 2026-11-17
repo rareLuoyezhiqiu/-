@@ -1,5 +1,13 @@
 # 灵感清单
 
+## Android 测试版
+
+从 [GitHub Releases](https://github.com/rareLuoyezhiqiu/-/releases) 下载 APK 安装。基础记录离线可用；AI 拓写由手机直接调用你填写的 HTTPS 接口，需自备 API Key。密钥使用 Android 系统密钥加密保存，无需运行下面的网页代理服务。Android 7+ / WebView 107+，已在 Android 15 模拟器验证，实体手机仍需试用。
+
+升级请直接覆盖安装，并定期导出 JSON；卸载会删除本机记录。浏览器数据不自动迁移到 APK，暂不支持导入。详细说明见 [Android 构建与发布](docs/android-release.md)。维护者请离线备份被 Git 忽略的 `.signing/` 整个目录，后续更新需复用签名。
+
+以下为网页版本的开发与代理部署说明。
+
 基于 Vue 3、TypeScript、Vite、Dexie / IndexedDB 的手机优先灵感记录应用。无账号、云端记录库、跨设备同步；AI 由独立的服务端代理调用，不初始化演示数据。
 
 ## 本地运行

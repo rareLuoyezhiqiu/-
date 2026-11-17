@@ -1,3 +1,4 @@
+import { isAndroid } from '../services/native';
 import { ref } from 'vue';
 import type { Note, Expansion } from '../db';
 import { retainExpansion } from '../db';
@@ -34,7 +35,7 @@ export function useExpansion(refresh: () => Promise<void>) {
       if (!cfg.configured) throw Error('AI 尚未配置，请先打开 API 设置');
       let accepted = ''; try { accepted = localStorage.getItem('ai-consent') ?? ''; } catch {}
       if (accepted !== cfg.revision) {
-        if (!confirm(`使用 AI 拓写时，会将当前这条灵感正文发送至本应用的 AI 接口及 ${cfg.provider}（${new URL(cfg.endpoint).host}，${cfg.model}）进行处理。其他记录和草稿不会发送。\n数据处理政策：${cfg.policyUrl}\n上游可能保留数据，请阅读政策。是否继续？`)) { status.value = 'idle'; return; }
+        if (!confirm(`使用 AI 拓写时，会将当前这条灵感正文${isAndroid ? '直接发送至' : '发送至本应用的 AI 接口及'} ${cfg.provider}（${new URL(cfg.endpoint).host}，${cfg.model}）进行处理。其他记录和草稿不会发送。\n数据处理政策：${cfg.policyUrl}\n上游可能保留数据，请阅读政策。是否继续？`)) { status.value = 'idle'; return; }
         try { localStorage.setItem('ai-consent', cfg.revision); } catch {}
       }
       const result = await expand(note.content, crypto.randomUUID(), cfg.revision, signal, value => { if (ticket === generation) text.value = value; });
